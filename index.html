@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Housekeeping Stock</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;500;600;700&family=Noto+Serif+Thai:wght@600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@microsoft/teams-js@2/dist/MicrosoftTeams.min.js"></script>
+<style>
+  :root{
+    --bg:#EFF4F1; --panel:#FFFFFF; --ink:#1D2A26; --ink-soft:#5B6B65; --line:#DCE6E1;
+    --teal:#1F6F63; --teal-dark:#164F46; --teal-tint:#E3F0EC;
+    --amber:#C98A2C; --amber-tint:#FBEEDA; --red:#B9503F; --red-tint:#F8E5E1;
+    --radius-card:14px; --radius-pill:999px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{background:var(--bg); color:var(--ink); font-family:'Noto Sans Thai',sans-serif; -webkit-font-smoothing:antialiased; min-height:100vh;}
+  .app{max-width:560px; margin:0 auto; min-height:100vh; display:flex; flex-direction:column; background:var(--bg);}
+  header.top{padding:22px 20px 16px; border-bottom:1px solid var(--line); background:var(--panel);}
+  header.top h1{font-family:'Noto Serif Thai',serif; font-size:22px; font-weight:700; margin:0 0 2px; color:var(--teal-dark);}
+  header.top p{margin:0; font-size:13px; color:var(--ink-soft);}
+  .conn{display:inline-flex; align-items:center; gap:5px; font-size:11px; margin-top:8px; color:var(--ink-soft);}
+  .conn .dot{width:7px;height:7px;border-radius:50%;background:var(--teal);}
+  .conn.off .dot{background:var(--red);}
+  nav.tabs{display:flex; gap:6px; padding:10px 14px; background:var(--panel); border-bottom:1px solid var(--line); position:sticky; top:0; z-index:10;}
+  nav.tabs button{flex:1; border:none; background:transparent; padding:9px 4px; font-family:inherit; font-size:12px; font-weight:600; color:var(--ink-soft); border-radius:10px; cursor:pointer; display:flex; flex-direction:column; align-items:center; gap:2px;}
+  nav.tabs button .count{font-size:11px; font-weight:600; color:var(--teal);}
+  nav.tabs button.active{background:var(--teal-tint); color:var(--teal-dark);}
+  main{flex:1; padding:16px 16px 90px;}
+  .group-title{font-size:15px; font-weight:700; margin:22px 0 4px; color:var(--teal-dark); display:flex; align-items:baseline; gap:8px;}
+  .group-title:first-child{margin-top:4px;}
+  .group-sub{font-size:12px; color:var(--ink-soft); font-weight:500; margin-bottom:10px;}
+  .subcat{font-size:12.5px; font-weight:600; color:var(--ink-soft); margin:14px 0 6px 2px;}
+  .card{background:var(--panel); border:1px solid var(--line); border-radius:var(--radius-card); padding:12px 14px; margin-bottom:8px;}
+  .item-row{display:flex; align-items:center; gap:10px;}
+  .item-info{flex:1; min-width:0;}
+  .item-name{font-size:14.5px; font-weight:600; color:var(--ink);}
+  .item-meta{font-size:11.5px; color:var(--ink-soft); margin-top:2px;}
+  .badge{display:inline-block; font-size:11px; font-weight:600; padding:3px 9px; border-radius:var(--radius-pill); margin-top:5px;}
+  .badge.ok{background:var(--teal-tint); color:var(--teal-dark);}
+  .badge.low{background:var(--amber-tint); color:var(--amber);}
+  .badge.out{background:var(--red-tint); color:var(--red);}
+  .stepper{display:flex; align-items:center; gap:8px; background:var(--bg); border-radius:var(--radius-pill); padding:4px;}
+  .stepper button{width:28px;height:28px; border-radius:50%; border:none; background:var(--panel); color:var(--teal-dark); font-size:16px; font-weight:700; cursor:pointer; display:flex;align-items:center;justify-content:center; box-shadow:0 1px 2px rgba(0,0,0,.08);}
+  .stepper .qty{min-width:26px; text-align:center; font-weight:700; font-size:14px;}
+  .add-order-btn{margin-top:8px; width:100%; border:1px solid var(--teal); background:var(--teal-tint); color:var(--teal-dark); font-family:inherit; font-size:12.5px; font-weight:600; padding:7px; border-radius:9px; cursor:pointer;}
+  .add-order-btn.added{background:var(--teal); color:#fff; border-color:var(--teal);}
+  .fab{position:fixed; left:50%; transform:translateX(-50%); bottom:18px; max-width:560px; width:calc(100% - 32px);}
+  .fab button{width:100%; background:var(--teal-dark); color:#fff; border:none; padding:14px; border-radius:var(--radius-pill); font-family:inherit; font-size:14.5px; font-weight:700; cursor:pointer; box-shadow:0 6px 18px rgba(22,79,70,.28);}
+  .empty{text-align:center; color:var(--ink-soft); font-size:13.5px; padding:40px 20px;}
+  .queue-item{display:flex; align-items:center; gap:10px;}
+  .queue-item .item-info{flex:1;}
+  .remove-btn{border:none; background:none; color:var(--red); font-size:18px; cursor:pointer; padding:4px 6px;}
+  .add-form{background:var(--panel); border:1px dashed var(--line); border-radius:var(--radius-card); padding:14px; margin-top:16px;}
+  .add-form h3{margin:0 0 10px; font-size:14px; color:var(--teal-dark);}
+  .field-row{display:flex; gap:8px; margin-bottom:8px;}
+  .field-row.wide input, .field-row.wide select{flex:1;}
+  input, select{font-family:inherit; font-size:13.5px; padding:9px 10px; border:1px solid var(--line); border-radius:8px; background:#fff; color:var(--ink); width:100%;}
+  .toggle-add{text-align:center; color:var(--teal-dark); font-size:13px; font-weight:600; padding:10px; cursor:pointer; margin-top:8px;}
+  .primary-btn{background:var(--teal); color:#fff; border:none; padding:10px 14px; border-radius:9px; font-family:inherit; font-size:13.5px; font-weight:700; cursor:pointer; width:100%; margin-top:4px;}
+  .primary-btn:disabled{opacity:.5; cursor:default;}
+  .ghost-btn{background:none; border:1px solid var(--line); color:var(--ink-soft); padding:9px 14px; border-radius:9px; font-family:inherit; font-size:13px; font-weight:600; cursor:pointer; width:100%;}
+  .batch-card{background:var(--panel); border:1px solid var(--line); border-radius:var(--radius-card); padding:14px; margin-bottom:14px;}
+  .batch-head{display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:10px;}
+  .batch-head .date{font-size:12px; color:var(--ink-soft);}
+  .batch-status{font-size:11px; font-weight:700; padding:3px 10px; border-radius:var(--radius-pill); white-space:nowrap;}
+  .batch-status.pending{background:var(--amber-tint); color:var(--amber);}
+  .batch-status.done{background:var(--teal-tint); color:var(--teal-dark);}
+  .batch-line{display:flex; justify-content:space-between; align-items:center; padding:6px 0; border-bottom:1px solid var(--line); font-size:13px; gap:8px;}
+  .batch-line:last-of-type{border-bottom:none;}
+  .batch-line .lname{flex:1;}
+  .batch-line .lcat{font-size:11px; color:var(--ink-soft);}
+  .batch-line input{width:64px; text-align:center; padding:5px;}
+  .batch-actions{display:flex; gap:8px; margin-top:12px;}
+  .csv-btn{background:var(--panel); border:1px solid var(--teal); color:var(--teal-dark);}
+  .copy-toast{position:fixed; bottom:90px; left:50%; transform:translateX(-50%); background:var(--teal-dark); color:#fff; padding:9px 16px; border-radius:var(--radius-pill); font-size:13px; opacity:0; transition:opacity .25s; pointer-events:none; max-width:90%; text-align:center; z-index:50;}
+  .copy-toast.show{opacity:1;}
+  .loading, .fatal{padding:60px 20px; text-align:center; color:var(--ink-soft); font-size:13px;}
+  .setup{padding:32px 22px; max-width:440px; margin:40px auto; background:var(--panel); border:1px solid var(--line); border-radius:var(--radius-card);}
+  .setup h2{font-family:'Noto Serif Thai',serif; color:var(--teal-dark); font-size:19px; margin:0 0 10px;}
+  .setup p{font-size:13.5px; color:var(--ink-soft); line-height:1.6; margin:0 0 14px;}
+  .setup input{margin-bottom:10px;}
+</style>
+</head>
+<body>
+<div class="app" id="app">
+  <div class="loading" id="loading">กำลังโหลด…</div>
+</div>
+
+<script>
+/* ====== เริ่ม Teams SDK ถ้าเปิดอยู่ใน Microsoft Teams (ไม่มีผลถ้าเปิดในเบราว์เซอร์ปกติ) ====== */
+if (window.microsoftTeams) {
+  try{
+    microsoftTeams.app.initialize().then(()=>{
+      microsoftTeams.app.notifySuccess();
+    }).catch(()=>{ /* ไม่ได้เปิดใน Teams ก็ไม่เป็นไร */ });
+  }catch(e){}
+}
+
+/* ====== ตั้งค่าการเชื่อมต่อ Google Sheet (Apps Script Web App URL) ====== */
+let API_URL = localStorage.getItem('sheetApiUrl') || '';
+
+let items = [];
+let queue = [];
+let batches = [];
+let checks = [];
+let draftRequesterName = localStorage.getItem('lastRequesterName') || '';
+let draftCheckerName = localStorage.getItem('lastCheckerName') || '';
+let draftCheckerNote = '';
+window.__setDraft = function(key, val){
+  if(key==='requesterName') draftRequesterName = val;
+  else if(key==='checkerName') draftCheckerName = val;
+  else if(key==='checkerNote') draftCheckerNote = val;
+};
+let activeTab = 'stock';
+let showAddForm = false;
+let connected = false;
+let pollTimer = null;
+
+function showToast(msg){
+  const t = document.getElementById('toast');
+  if(!t) return;
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), 2200);
+}
+
+async function api(action, payload){
+  const url = API_URL + (API_URL.includes('?') ? '&' : '?') + 'action=' + encodeURIComponent(action);
+  const opts = payload
+    ? { method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body: JSON.stringify(payload) }
+    : { method:'GET' };
+  const res = await fetch(url, opts);
+  const data = await res.json();
+  if(data && data.error) throw new Error(data.error);
+  return data;
+}
+
+async function loadAll(){
+  try{
+    const data = await api('getAll');
+    items = data.items || [];
+    queue = data.queue || [];
+    batches = data.batches || [];
+    checks = data.checks || [];
+    connected = true;
+  }catch(e){
+    connected = false;
+  }
+  render();
+}
+
+function startPolling(){
+  if(pollTimer) clearInterval(pollTimer);
+  pollTimer = setInterval(loadAll, 8000); // sync ทุก 8 วินาที
+}
+
+/* ====== setup screen ====== */
+function renderSetup(){
+  document.getElementById('app').innerHTML = `
+    <div class="setup">
+      <h2>เชื่อมต่อกับ Google Sheet</h2>
+      <p>วาง URL ของ Web App ที่ deploy จาก Google Apps Script (ดูขั้นตอนติดตั้งที่ Claude ส่งให้) ระบบจะจำไว้ในเครื่องนี้ ไม่ต้องกรอกซ้ำ</p>
+      <input id="url-input" placeholder="https://script.google.com/macros/s/.../exec" value="${API_URL}">
+      <button class="primary-btn" onclick="window.__saveUrl()">เชื่อมต่อ</button>
+    </div>`;
+}
+window.__saveUrl = async function(){
+  const v = document.getElementById('url-input').value.trim();
+  if(!v){ showToast('กรุณาวาง URL'); return; }
+  API_URL = v;
+  localStorage.setItem('sheetApiUrl', v);
+  document.getElementById('app').innerHTML = '<div class="loading">กำลังเชื่อมต่อ…</div>';
+  await loadAll();
+  if(connected){ startPolling(); }
+  else { showToast('เชื่อมต่อไม่สำเร็จ ตรวจสอบ URL อีกครั้ง'); renderSetup(); }
+};
+
+/* ====== data helpers ====== */
+function statusOf(item){
+  if(item.qty <= 0) return 'out';
+  if(item.qty <= item.minQty) return 'low';
+  return 'ok';
+}
+function statusLabel(s){ return s==='out' ? 'ของหมด' : s==='low' ? 'ใกล้หมด' : 'พอใช้'; }
+function isQueued(id){ return queue.some(q=>q.itemId===id); }
+
+async function changeQty(id, delta){
+  const it = items.find(x=>x.id===id);
+  if(!it) return;
+  const newQty = Math.max(0, Number(it.qty) + delta);
+  it.qty = newQty; render(); // optimistic
+  try{ await api('updateItemQty', {id, qty:newQty}); }
+  catch(e){ showToast('บันทึกไม่สำเร็จ'); }
+  loadAll();
+}
+
+async function toggleQueue(id){
+  const already = queue.find(q=>q.itemId===id);
+  try{
+    if(already){ await api('removeFromQueue', {itemId:id}); }
+    else{
+      const it = items.find(x=>x.id===id);
+      const suggested = it ? Math.max(1, it.minQty - it.qty + 1) : 1;
+      await api('addToQueue', {itemId:id, qty:suggested});
+    }
+    await loadAll();
+  }catch(e){ showToast('บันทึกไม่สำเร็จ'); }
+}
+
+async function changeQueueQty(id, delta){
+  const q = queue.find(x=>x.itemId===id);
+  if(!q) return;
+  const newQty = Math.max(1, Number(q.qty) + delta);
+  try{ await api('updateQueueQty', {itemId:id, qty:newQty}); await loadAll(); }
+  catch(e){ showToast('บันทึกไม่สำเร็จ'); }
+}
+
+async function removeFromQueue(id){
+  try{ await api('removeFromQueue', {itemId:id}); await loadAll(); }
+  catch(e){ showToast('ลบไม่สำเร็จ'); }
+}
+
+async function submitOrder(){
+  if(queue.length===0) return;
+  const requestedBy = draftRequesterName.trim();
+  if(!requestedBy){ showToast('กรุณาใส่ชื่อผู้เบิกก่อนส่งรายการ'); return; }
+  localStorage.setItem('lastRequesterName', requestedBy);
+  const batchItems = queue.map(q=>{
+    const it = items.find(x=>x.id===q.itemId);
+    return {
+      itemId:q.itemId, name: it?it.name:'ไม่ทราบชื่อ', unit: it?it.unit:'',
+      category: it?it.subcat:'', group: it?it.group:'consumable', qty:q.qty, received:q.qty
+    };
+  });
+  try{
+    await api('submitOrder', {items:batchItems, requestedBy});
+    activeTab = 'summary';
+    await loadAll();
+  }catch(e){ showToast('ส่งรายการไม่สำเร็จ'); }
+}
+
+async function updateReceived(batchId, idx, val){
+  const b = batches.find(x=>x.id===batchId);
+  if(!b) return;
+  const newItems = b.items.map((it,i)=> i===idx ? {...it, received: Math.max(0, Number(val)||0)} : it);
+  try{ await api('updateReceived', {batchId, items:newItems}); await loadAll(); }
+  catch(e){ showToast('บันทึกไม่สำเร็จ'); }
+}
+
+async function confirmBatch(batchId){
+  try{ await api('confirmBatch', {batchId}); await loadAll(); showToast('รับของเรียบร้อย เติมสต็อกแล้ว'); }
+  catch(e){ showToast('ยืนยันไม่สำเร็จ'); }
+}
+
+async function deleteBatch(batchId){
+  try{ await api('deleteBatch', {batchId}); await loadAll(); }
+  catch(e){ showToast('ลบไม่สำเร็จ'); }
+}
+
+async function addNewItem(name, group, subcat, unit, qty, minQty){
+  if(!name.trim()) return;
+  try{
+    await api('addItem', {name:name.trim(), group, subcat:subcat.trim()||'ทั่วไป', unit:unit.trim()||'ชิ้น', qty:Number(qty)||0, minQty:Number(minQty)||1});
+    showAddForm = false;
+    await loadAll();
+  }catch(e){ showToast('เพิ่มรายการไม่สำเร็จ'); }
+}
+
+function setTab(t){ activeTab = t; render(); }
+
+function groupItems(list, group){
+  const filtered = list.filter(i=>i.group===group);
+  const bySub = {};
+  filtered.forEach(i=>{ bySub[i.subcat] = bySub[i.subcat] || []; bySub[i.subcat].push(i); });
+  return bySub;
+}
+
+function fmtDate(iso){
+  if(!iso) return '';
+  const d = new Date(iso);
+  return d.toLocaleDateString('th-TH', {day:'numeric', month:'short', year:'numeric'}) + ' ' +
+         d.toLocaleTimeString('th-TH', {hour:'2-digit', minute:'2-digit'});
+}
+
+function copySummary(){
+  const pending = batches.filter(b=>b.status==='pending');
+  if(pending.length===0) return;
+  let text = 'รายการสั่งซื้อของใช้ในบ้าน\n';
+  pending.forEach(b=>{
+    text += '\n— ส่งเมื่อ ' + fmtDate(b.createdAt) + ' —\n';
+    const byCat = {};
+    b.items.forEach(it=>{ byCat[it.category] = byCat[it.category] || []; byCat[it.category].push(it); });
+    Object.keys(byCat).forEach(cat=>{
+      text += cat + ':\n';
+      byCat[cat].forEach(it=>{ text += '  - ' + it.name + ' x ' + it.qty + ' ' + it.unit + '\n'; });
+    });
+  });
+  navigator.clipboard.writeText(text).then(()=> showToast('คัดลอกรายการแล้ว')).catch(()=> showToast('คัดลอกไม่สำเร็จ'));
+}
+
+function csvEscape(v){ const s = String(v==null?'':v); return '"' + s.replace(/"/g,'""') + '"'; }
+
+function exportCSV(){
+  const pending = batches.filter(b=>b.status==='pending');
+  if(pending.length===0){ showToast('ยังไม่มีรายการรอสั่งซื้อ'); return; }
+  const rows = [['วันที่ส่งคำขอ','หมวดหมู่ย่อย','ชื่อสินค้า','จำนวนที่สั่ง','หน่วย']];
+  pending.forEach(b=> b.items.forEach(it=> rows.push([fmtDate(b.createdAt), it.category, it.name, it.qty, it.unit])));
+  const csv = '\uFEFF' + rows.map(r=>r.map(csvEscape).join(',')).join('\r\n');
+  const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'รายการสั่งซื้อ-' + new Date().toISOString().slice(0,10) + '.csv';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  showToast('ดาวน์โหลด CSV แล้ว — นำเข้า Google Sheet ได้เลย');
+}
+
+/* ====== render ====== */
+function renderStockTab(){
+  const consumableGroups = groupItems(items, 'consumable');
+  const durableGroups = groupItems(items, 'durable');
+  let html = '';
+  html += `<div class="group-title">🧴 วัสดุสิ้นเปลือง</div><div class="group-sub">ของใช้ที่หมดเร็ว ต้องเติมสม่ำเสมอ</div>`;
+  html += renderSubcats(consumableGroups);
+  html += `<div class="group-title">🧹 ของใช้ทั่วไป</div><div class="group-sub">อุปกรณ์ที่ไม่ต้องเปลี่ยนบ่อย</div>`;
+  html += renderSubcats(durableGroups);
+  html += `<div class="toggle-add" onclick="window.__toggleAddForm()">${showAddForm ? '– ซ่อนฟอร์ม' : '+ เพิ่มรายการของใช้ใหม่'}</div>`;
+  if(showAddForm){
+    html += `
+    <div class="add-form">
+      <h3>เพิ่มของใช้ใหม่</h3>
+      <div class="field-row wide"><input id="nf-name" placeholder="ชื่อสินค้า เช่น น้ำยาล้างพื้น"></div>
+      <div class="field-row wide">
+        <select id="nf-group"><option value="consumable">วัสดุสิ้นเปลือง</option><option value="durable">ของใช้ทั่วไป</option></select>
+        <input id="nf-subcat" placeholder="หมวดย่อย เช่น น้ำยาทำความสะอาด">
+      </div>
+      <div class="field-row wide">
+        <input id="nf-unit" placeholder="หน่วย เช่น ขวด">
+        <input id="nf-qty" type="number" placeholder="จำนวนปัจจุบัน" min="0">
+        <input id="nf-min" type="number" placeholder="ขั้นต่ำ" min="0">
+      </div>
+      <button class="primary-btn" onclick="window.__submitAdd()">บันทึกรายการ</button>
+    </div>`;
+  }
+  return html;
+}
+
+function renderSubcats(bySub){
+  let html = '';
+  const keys = Object.keys(bySub);
+  if(keys.length===0){ return `<div class="empty">ยังไม่มีรายการในหมวดนี้</div>`; }
+  keys.forEach(subcat=>{
+    html += `<div class="subcat">${subcat}</div>`;
+    bySub[subcat].forEach(it=>{
+      const st = statusOf(it);
+      const queued = isQueued(it.id);
+      html += `
+      <div class="card">
+        <div class="item-row">
+          <div class="item-info">
+            <div class="item-name">${it.name}</div>
+            <div class="item-meta">ขั้นต่ำ ${it.minQty} ${it.unit}</div>
+            <span class="badge ${st}">${statusLabel(st)}</span>
+          </div>
+          <div class="stepper">
+            <button onclick="window.__changeQty('${it.id}',-1)">−</button>
+            <div class="qty">${it.qty}</div>
+            <button onclick="window.__changeQty('${it.id}',1)">+</button>
+          </div>
+        </div>
+        <button class="add-order-btn ${queued?'added':''}" onclick="window.__toggleQueue('${it.id}')">
+          ${queued ? '✓ อยู่ในรายการสั่งซื้อแล้ว' : '+ เพิ่มลงรายการสั่งซื้อ'}
+        </button>
+      </div>`;
+    });
+  });
+  return html;
+}
+
+function renderOrderTab(){
+  const nameField = `
+    <div class="card" style="margin-bottom:14px">
+      <div class="item-meta" style="margin-bottom:6px">ชื่อผู้เบิก (บันทึกไว้ในรายการที่ส่ง)</div>
+      <input id="requester-name" placeholder="เช่น พี่มาลี" value="${draftRequesterName}" oninput="window.__setDraft('requesterName', this.value)">
+    </div>`;
+  if(queue.length===0){
+    return nameField + `<div class="empty">ยังไม่มีรายการที่จะสั่งซื้อ<br>ไปที่แท็บ "เช็คสต็อก" แล้วกด "เพิ่มลงรายการสั่งซื้อ"</div>`;
+  }
+  let html = nameField + `<div class="group-title">รายการที่จะสั่งซื้อ (${queue.length})</div>`;
+  queue.forEach(q=>{
+    const it = items.find(x=>x.id===q.itemId);
+    if(!it) return;
+    html += `
+    <div class="card">
+      <div class="queue-item">
+        <div class="item-info">
+          <div class="item-name">${it.name}</div>
+          <div class="item-meta">${it.subcat} · มีอยู่ ${it.qty} ${it.unit}</div>
+        </div>
+        <div class="stepper">
+          <button onclick="window.__changeQueueQty('${it.id}',-1)">−</button>
+          <div class="qty">${q.qty}</div>
+          <button onclick="window.__changeQueueQty('${it.id}',1)">+</button>
+        </div>
+        <button class="remove-btn" onclick="window.__removeFromQueue('${it.id}')">✕</button>
+      </div>
+    </div>`;
+  });
+  return html;
+}
+
+function daysSince(iso){
+  if(!iso) return null;
+  const ms = Date.now() - new Date(iso).getTime();
+  return Math.floor(ms / 86400000);
+}
+
+function renderWeeklyTab(){
+  const lastCheck = checks[0]; // checks sorted newest first
+  const days = lastCheck ? daysSince(lastCheck.date) : null;
+  let statusClass = 'out', statusText = 'ยังไม่เคยเช็ค';
+  if(days!==null){
+    if(days<=7){ statusClass='ok'; statusText = days===0 ? 'เช็ควันนี้แล้ว' : `เช็คเมื่อ ${days} วันที่แล้ว`; }
+    else if(days<=14){ statusClass='low'; statusText = `เกินกำหนด ${days} วันแล้ว`; }
+    else { statusClass='out'; statusText = `เกินกำหนดมาก (${days} วัน)`; }
+  }
+  const lowCount = items.filter(i=>statusOf(i)!=='ok').length;
+
+  let html = `<div class="group-title">เช็คสต็อกรายสัปดาห์</div>`;
+  html += `<div class="group-sub">บันทึกทุกครั้งที่เดินสำรวจสต็อกจริง เพื่อให้รู้ว่าเช็คล่าสุดเมื่อไหร่และใครเป็นคนเช็ค</div>`;
+  html += `
+  <div class="card">
+    <div class="item-info">
+      <div class="item-name">สถานะล่าสุด</div>
+      <span class="badge ${statusClass}">${statusText}</span>
+      ${lastCheck ? `<div class="item-meta" style="margin-top:6px">โดย ${lastCheck.checkerName || 'ไม่ระบุชื่อ'} · ${fmtDate(lastCheck.date)}</div>` : ''}
+    </div>
+  </div>
+  <div class="card">
+    <div class="item-meta" style="margin-bottom:6px">ชื่อผู้เช็ค</div>
+    <input id="checker-name" placeholder="เช่น พี่มาลี" value="${draftCheckerName}" oninput="window.__setDraft('checkerName', this.value)" style="margin-bottom:8px">
+    <div class="item-meta" style="margin-bottom:6px">หมายเหตุ (ถ้ามี)</div>
+    <input id="checker-note" placeholder="เช่น ของครบทุกชิ้น" value="${draftCheckerNote}" oninput="window.__setDraft('checkerNote', this.value)">
+    <button class="primary-btn" style="margin-top:10px" onclick="window.__logCheck()">✓ บันทึกว่าเช็ควันนี้แล้ว (พบของใกล้หมด/หมด ${lowCount} รายการ)</button>
+  </div>`;
+
+  if(checks.length>0){
+    html += `<div class="group-title" style="margin-top:22px">ประวัติการเช็คสต็อก</div>`;
+    checks.forEach(c=>{
+      html += `
+      <div class="card">
+        <div class="item-row">
+          <div class="item-info">
+            <div class="item-name">${c.checkerName || 'ไม่ระบุชื่อ'}</div>
+            <div class="item-meta">${fmtDate(c.date)}${c.note ? ' · ' + c.note : ''}</div>
+          </div>
+          <span class="badge ${Number(c.lowStockCount)>0 ? 'low':'ok'}">ใกล้หมด/หมด ${c.lowStockCount||0}</span>
+        </div>
+      </div>`;
+    });
+  }
+  return html;
+}
+
+async function logCheck(){
+  const checkerName = draftCheckerName.trim();
+  const note = draftCheckerNote.trim();
+  if(!checkerName){ showToast('กรุณาใส่ชื่อผู้เช็คก่อนบันทึก'); return; }
+  localStorage.setItem('lastCheckerName', checkerName);
+  const lowStockCount = items.filter(i=>statusOf(i)!=='ok').length;
+  try{
+    await api('addCheck', {checkerName, note, lowStockCount});
+    draftCheckerNote = '';
+    await loadAll();
+    showToast('บันทึกการเช็คสต็อกแล้ว');
+  }catch(e){ showToast('บันทึกไม่สำเร็จ'); }
+}
+
+function renderSummaryTab(){
+  let html = '';
+  const pending = batches.filter(b=>b.status==='pending');
+  const done = batches.filter(b=>b.status==='done');
+  html += `<div class="group-title">สรุปสำหรับฝ่ายจัดซื้อ</div>`;
+  html += `<div class="group-sub">รายการที่รออนุมัติซื้อ — คัดลอกหรือดาวน์โหลด CSV เพื่อส่งต่อ แล้วกดยืนยันเมื่อได้รับของแล้ว</div>`;
+  if(pending.length>0){
+    html += `<button class="primary-btn" style="margin-bottom:8px" onclick="window.__copySummary()">📋 คัดลอกรายการทั้งหมด</button>`;
+    html += `<button class="primary-btn csv-btn" style="margin-bottom:14px" onclick="window.__exportCSV()">⬇️ ดาวน์โหลด CSV (นำเข้า Google Sheet)</button>`;
+  }
+  if(batches.length===0){ html += `<div class="empty">ยังไม่มีการส่งคำสั่งซื้อ</div>`; }
+  pending.forEach(b=>{ html += renderBatchCard(b); });
+  if(done.length>0){
+    html += `<div class="group-title" style="margin-top:26px">ประวัติที่รับของแล้ว</div>`;
+    done.forEach(b=>{ html += renderBatchCard(b); });
+  }
+  return html;
+}
+
+function renderBatchCard(b){
+  let html = `<div class="batch-card">
+    <div class="batch-head">
+      <div>
+        <div class="date">ส่งเมื่อ ${fmtDate(b.createdAt)}</div>
+        ${b.requestedBy ? `<div class="date">ผู้เบิก: ${b.requestedBy}</div>` : ''}
+        ${b.status==='done' ? `<div class="date">รับของเมื่อ ${fmtDate(b.completedAt)}</div>` : ''}
+      </div>
+      <div class="batch-status ${b.status}">${b.status==='pending' ? 'รอจัดซื้อ' : 'รับของแล้ว'}</div>
+    </div>`;
+  (b.items||[]).forEach((it, idx)=>{
+    html += `<div class="batch-line">
+      <div class="lname">${it.name}<div class="lcat">${it.category}</div></div>
+      <div>สั่ง ${it.qty} ${it.unit}</div>
+      ${b.status==='pending'
+        ? `<input type="number" min="0" value="${it.received}" onchange="window.__updateReceived('${b.id}',${idx},this.value)">`
+        : `<div>รับ ${it.received} ${it.unit}</div>`}
+    </div>`;
+  });
+  if(b.status==='pending'){
+    html += `<div class="batch-actions">
+      <button class="ghost-btn" onclick="window.__deleteBatch('${b.id}')">ลบรายการ</button>
+      <button class="primary-btn" onclick="window.__confirmBatch('${b.id}')">✓ ยืนยันรับของ</button>
+    </div>`;
+  }
+  html += `</div>`;
+  return html;
+}
+
+function render(){
+  if(!API_URL){ renderSetup(); return; }
+  const app = document.getElementById('app');
+  const lowCount = items.filter(i=>statusOf(i)!=='ok').length;
+  const pendingCount = batches.filter(b=>b.status==='pending').length;
+  const lastCheck = checks[0];
+  const checkDays = lastCheck ? daysSince(lastCheck.date) : null;
+  const checkOverdue = checkDays===null || checkDays>7;
+  let body = '';
+  if(activeTab==='stock') body = renderStockTab();
+  else if(activeTab==='order') body = renderOrderTab();
+  else if(activeTab==='weekly') body = renderWeeklyTab();
+  else body = renderSummaryTab();
+
+  app.innerHTML = `
+    <header class="top">
+      <h1>Housekeeping Stock</h1>
+      <p>เช็คสต็อก จัดหมวดหมู่ และส่งรายการสั่งซื้อได้ในที่เดียว</p>
+      <div class="conn ${connected?'':'off'}"><span class="dot"></span>${connected ? 'เชื่อมต่อ Google Sheet แล้ว · sync ทุก 8 วิ' : 'เชื่อมต่อไม่ได้ ตรวจสอบอินเทอร์เน็ต'}</div>
+    </header>
+    <nav class="tabs">
+      <button class="${activeTab==='stock'?'active':''}" onclick="window.__setTab('stock')">เช็คสต็อก ${lowCount>0 ? `<span class="count">${lowCount} รายการใกล้หมด</span>` : ''}</button>
+      <button class="${activeTab==='order'?'active':''}" onclick="window.__setTab('order')">รายการสั่งซื้อ ${queue.length>0 ? `<span class="count">${queue.length} รายการ</span>` : ''}</button>
+      <button class="${activeTab==='weekly'?'active':''}" onclick="window.__setTab('weekly')">รายสัปดาห์ ${checkOverdue ? `<span class="count">เกินกำหนด</span>` : ''}</button>
+      <button class="${activeTab==='summary'?'active':''}" onclick="window.__setTab('summary')">สรุป/จัดซื้อ ${pendingCount>0 ? `<span class="count">${pendingCount} รอซื้อ</span>` : ''}</button>
+    </nav>
+    <main>${body}</main>
+    ${activeTab==='order' && queue.length>0 ? `<div class="fab"><button onclick="window.__submitOrder()">ส่งรายการให้ฝ่ายจัดซื้อ (${queue.length} รายการ)</button></div>` : ''}
+    <div class="copy-toast" id="toast"></div>
+  `;
+}
+
+window.__setTab = setTab;
+window.__changeQty = changeQty;
+window.__toggleQueue = toggleQueue;
+window.__changeQueueQty = changeQueueQty;
+window.__removeFromQueue = removeFromQueue;
+window.__submitOrder = submitOrder;
+window.__updateReceived = updateReceived;
+window.__confirmBatch = confirmBatch;
+window.__deleteBatch = deleteBatch;
+window.__copySummary = copySummary;
+window.__exportCSV = exportCSV;
+window.__logCheck = logCheck;
+window.__toggleAddForm = ()=>{ showAddForm = !showAddForm; render(); };
+window.__submitAdd = ()=>{
+  addNewItem(
+    document.getElementById('nf-name').value,
+    document.getElementById('nf-group').value,
+    document.getElementById('nf-subcat').value,
+    document.getElementById('nf-unit').value,
+    document.getElementById('nf-qty').value,
+    document.getElementById('nf-min').value
+  );
+};
+
+if(API_URL){ loadAll().then(()=>{ if(connected) startPolling(); }); }
+else{ renderSetup(); }
+</script>
+</body>
+</html>
