@@ -7,6 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;500;600;700&family=Noto+Serif+Thai:wght@600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@microsoft/teams-js@2/dist/MicrosoftTeams.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
   :root{
     --bg:#EFF4F1; --panel:#FFFFFF; --ink:#1D2A26; --ink-soft:#5B6B65; --line:#DCE6E1;
@@ -24,9 +25,9 @@
   .conn{display:inline-flex; align-items:center; gap:5px; font-size:11px; margin-top:8px; color:var(--ink-soft);}
   .conn .dot{width:7px;height:7px;border-radius:50%;background:var(--teal);}
   .conn.off .dot{background:var(--red);}
-  nav.tabs{display:flex; gap:6px; padding:10px 14px; background:var(--panel); border-bottom:1px solid var(--line); position:sticky; top:0; z-index:10;}
-  nav.tabs button{flex:1; border:none; background:transparent; padding:9px 4px; font-family:inherit; font-size:12px; font-weight:600; color:var(--ink-soft); border-radius:10px; cursor:pointer; display:flex; flex-direction:column; align-items:center; gap:2px;}
-  nav.tabs button .count{font-size:11px; font-weight:600; color:var(--teal);}
+  nav.tabs{display:flex; gap:6px; padding:10px 14px; background:var(--panel); border-bottom:1px solid var(--line); position:sticky; top:0; z-index:10; overflow-x:auto; -webkit-overflow-scrolling:touch;}
+  nav.tabs button{flex:0 0 auto; min-width:74px; border:none; background:transparent; padding:9px 8px; font-family:inherit; font-size:11.5px; font-weight:600; color:var(--ink-soft); border-radius:10px; cursor:pointer; display:flex; flex-direction:column; align-items:center; gap:2px; white-space:nowrap;}
+  nav.tabs button .count{font-size:10.5px; font-weight:600; color:var(--teal);}
   nav.tabs button.active{background:var(--teal-tint); color:var(--teal-dark);}
   main{flex:1; padding:16px 16px 90px;}
   .group-title{font-size:15px; font-weight:700; margin:22px 0 4px; color:var(--teal-dark); display:flex; align-items:baseline; gap:8px;}
@@ -47,6 +48,9 @@
   .stepper .qty{min-width:26px; text-align:center; font-weight:700; font-size:14px;}
   .add-order-btn{margin-top:8px; width:100%; border:1px solid var(--teal); background:var(--teal-tint); color:var(--teal-dark); font-family:inherit; font-size:12.5px; font-weight:600; padding:7px; border-radius:9px; cursor:pointer;}
   .add-order-btn.added{background:var(--teal); color:#fff; border-color:var(--teal);}
+  .usage-row{display:flex; gap:6px; margin-top:6px; align-items:center;}
+  .usage-row input{width:60px; padding:7px 6px; font-size:12.5px;}
+  .usage-btn{flex:1; border:1px solid var(--red); background:var(--red-tint); color:var(--red); font-family:inherit; font-size:12px; font-weight:600; padding:7px; border-radius:9px; cursor:pointer;}
   .fab{position:fixed; left:50%; transform:translateX(-50%); bottom:18px; max-width:560px; width:calc(100% - 32px);}
   .fab button{width:100%; background:var(--teal-dark); color:#fff; border:none; padding:14px; border-radius:var(--radius-pill); font-family:inherit; font-size:14.5px; font-weight:700; cursor:pointer; box-shadow:0 6px 18px rgba(22,79,70,.28);}
   .empty{text-align:center; color:var(--ink-soft); font-size:13.5px; padding:40px 20px;}
@@ -89,10 +93,17 @@
   .count-line .lname{flex:1; font-size:13.5px; font-weight:600;}
   .count-line .sysqty{font-size:11.5px; color:var(--ink-soft); margin-top:2px;}
   .count-line input{width:66px; text-align:center;}
-  .diff-tag{font-size:11px; font-weight:700; min-width:56px; text-align:center;}
-  .diff-tag.zero{color:var(--ink-soft);}
-  .diff-tag.pos{color:var(--teal-dark);}
-  .diff-tag.neg{color:var(--red);}
+  .metric-grid{display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:6px;}
+  .metric-box{background:var(--panel); border:1px solid var(--line); border-radius:var(--radius-card); padding:14px; text-align:center;}
+  .metric-box .num{font-size:24px; font-weight:700; color:var(--teal-dark); font-family:'Noto Serif Thai',serif;}
+  .metric-box.warn .num{color:var(--red);}
+  .metric-box .lbl{font-size:11px; color:var(--ink-soft); margin-top:3px;}
+  .range-row{display:flex; gap:8px; margin-bottom:10px; align-items:center;}
+  .range-row input{flex:1;}
+  .range-row span{font-size:12px; color:var(--ink-soft);}
+  .agg-line{display:flex; justify-content:space-between; padding:7px 0; border-bottom:1px solid var(--line); font-size:13px;}
+  .agg-line:last-of-type{border-bottom:none;}
+  .agg-line .n{font-weight:600;}
   .copy-toast{position:fixed; bottom:90px; left:50%; transform:translateX(-50%); background:var(--teal-dark); color:#fff; padding:9px 16px; border-radius:var(--radius-pill); font-size:13px; opacity:0; transition:opacity .25s; pointer-events:none; max-width:90%; text-align:center; z-index:50;}
   .copy-toast.show{opacity:1;}
   .loading, .fatal{padding:60px 20px; text-align:center; color:var(--ink-soft); font-size:13px;}
@@ -113,7 +124,7 @@ if (window.microsoftTeams) {
   try{
     microsoftTeams.app.initialize().then(()=>{
       microsoftTeams.app.notifySuccess();
-    }).catch(()=>{ /* ไม่ได้เปิดใน Teams ก็ไม่เป็นไร */ });
+    }).catch(()=>{});
   }catch(e){}
 }
 
@@ -124,12 +135,21 @@ let items = [];
 let queue = [];
 let batches = [];
 let stockChecks = [];
+let usageLog = [];
+
 let draftRequesterName = localStorage.getItem('lastRequesterName') || '';
 let draftCheckerName = localStorage.getItem('lastCheckerName') || '';
 let draftCheckerNote = '';
 let draftNewItem = {name:'', group:'consumable', subcat:'', unit:'', qty:'', minQty:''};
-let draftCounts = {}; // { itemId: actualQtyString } สำหรับหน้าตรวจนับสต็อก
+let draftCounts = {};
+let draftUsage = {};
 let adjustStockOnSave = true;
+
+function pad2(n){ return String(n).padStart(2,'0'); }
+function todayStr(){ const d=new Date(); return d.getFullYear()+'-'+pad2(d.getMonth()+1)+'-'+pad2(d.getDate()); }
+function firstOfMonthStr(){ const d=new Date(); return d.getFullYear()+'-'+pad2(d.getMonth()+1)+'-01'; }
+let draftRangeStart = firstOfMonthStr();
+let draftRangeEnd = todayStr();
 
 window.__setNewItemDraft = function(field, val){ draftNewItem[field] = val; };
 window.__setDraft = function(key, val){
@@ -138,7 +158,9 @@ window.__setDraft = function(key, val){
   else if(key==='checkerNote') draftCheckerNote = val;
 };
 window.__setCountDraft = function(itemId, val){ draftCounts[itemId] = val; };
+window.__setUsageDraft = function(itemId, val){ draftUsage[itemId] = val; };
 window.__toggleAdjustStock = function(checked){ adjustStockOnSave = checked; };
+window.__setRange = function(which, val){ if(which==='start') draftRangeStart=val; else draftRangeEnd=val; render(); };
 
 let activeTab = 'stock';
 let showAddForm = false;
@@ -171,6 +193,7 @@ async function loadAll(){
     queue = data.queue || [];
     batches = data.batches || [];
     stockChecks = data.stockChecks || [];
+    usageLog = data.usageLog || [];
     connected = true;
   }catch(e){
     connected = false;
@@ -180,7 +203,7 @@ async function loadAll(){
 
 function startPolling(){
   if(pollTimer) clearInterval(pollTimer);
-  pollTimer = setInterval(loadAll, 8000); // sync ทุก 8 วินาที
+  pollTimer = setInterval(loadAll, 8000);
 }
 
 /* ====== setup screen ====== */
@@ -188,7 +211,7 @@ function renderSetup(){
   document.getElementById('app').innerHTML = `
     <div class="setup">
       <h2>เชื่อมต่อกับ Google Sheet</h2>
-      <p>วาง URL ของ Web App ที่ deploy จาก Google Apps Script (ดูขั้นตอนติดตั้งที่ Claude ส่งให้) ระบบจะจำไว้ในเครื่องนี้ ไม่ต้องกรอกซ้ำ</p>
+      <p>วาง URL ของ Web App ที่ deploy จาก Google Apps Script ระบบจะจำไว้ในเครื่องนี้ ไม่ต้องกรอกซ้ำ</p>
       <input id="url-input" placeholder="https://script.google.com/macros/s/.../exec" value="${API_URL}">
       <button class="primary-btn" onclick="window.__saveUrl()">เชื่อมต่อ</button>
     </div>`;
@@ -212,12 +235,14 @@ function statusOf(item){
 }
 function statusLabel(s){ return s==='out' ? 'ของหมด' : s==='low' ? 'ใกล้หมด' : 'พอใช้'; }
 function isQueued(id){ return queue.some(q=>q.itemId===id); }
+function dateOnly(iso){ return iso ? String(iso).slice(0,10) : ''; }
+function inRange(iso){ const d=dateOnly(iso); return d && d>=draftRangeStart && d<=draftRangeEnd; }
 
 async function changeQty(id, delta){
   const it = items.find(x=>x.id===id);
   if(!it) return;
   const newQty = Math.max(0, Number(it.qty) + delta);
-  it.qty = newQty; render(); // optimistic
+  it.qty = newQty; render();
   try{ await api('updateItemQty', {id, qty:newQty}); }
   catch(e){ showToast('บันทึกไม่สำเร็จ'); }
   loadAll();
@@ -270,7 +295,6 @@ async function submitOrder(){
   }catch(e){ showToast('ส่งรายการไม่สำเร็จ'); }
 }
 
-/* เช็คลิสต์หน้าจัดซื้อ: ติ๊กสำเร็จ/ไม่สำเร็จ ทีละรายการ */
 async function setPurchaseStatus(batchId, idx, status){
   const b = batches.find(x=>x.id===batchId);
   if(!b) return;
@@ -298,10 +322,20 @@ async function addNewItem(name, group, subcat, unit, qty, minQty){
   }catch(e){ showToast('เพิ่มรายการไม่สำเร็จ'); }
 }
 
+async function logUsageItem(itemId){
+  const val = Number(draftUsage[itemId]) || 0;
+  if(val<=0){ showToast('กรุณาใส่จำนวนที่ใช้ไป'); return; }
+  try{
+    await api('logUsage', {itemId, qty:val, note:''});
+    draftUsage[itemId] = '';
+    await loadAll();
+    showToast('บันทึกการใช้ของแล้ว');
+  }catch(e){ showToast('บันทึกไม่สำเร็จ'); }
+}
+
 function setTab(t){
   activeTab = t;
   if(t==='weekly'){
-    // ตั้งค่าเริ่มต้นของช่องนับ = จำนวนในระบบปัจจุบัน (ถ้ายังไม่เคยแก้)
     items.forEach(it=>{ if(draftCounts[it.id]===undefined) draftCounts[it.id] = String(it.qty); });
   }
   render();
@@ -337,27 +371,78 @@ function copySummary(){
   navigator.clipboard.writeText(text).then(()=> showToast('คัดลอกรายการแล้ว')).catch(()=> showToast('คัดลอกไม่สำเร็จ'));
 }
 
-function csvEscape(v){ const s = String(v==null?'':v); return '"' + s.replace(/"/g,'""') + '"'; }
-
-function exportCSV(){
-  const pending = batches.filter(b=>b.status==='pending');
-  if(pending.length===0){ showToast('ยังไม่มีรายการรอสั่งซื้อ'); return; }
-  const rows = [['วันที่ส่งคำขอ','ผู้เบิก','หมวดหมู่ย่อย','ชื่อสินค้า','จำนวนที่สั่ง','หน่วย']];
-  pending.forEach(b=> b.items.forEach(it=> rows.push([fmtDate(b.createdAt), b.requestedBy||'', it.category, it.name, it.qty, it.unit])));
-  const csv = '\uFEFF' + rows.map(r=>r.map(csvEscape).join(',')).join('\r\n');
-  const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = 'รายการสั่งซื้อ-' + new Date().toISOString().slice(0,10) + '.csv';
-  document.body.appendChild(a); a.click(); document.body.removeChild(a);
-  showToast('ดาวน์โหลด CSV แล้ว');
+/* ====== Excel export (ใช้ร่วมกันทุกแท็บ) ====== */
+function downloadWorkbook(sheets, filename){
+  try{
+    const wb = XLSX.utils.book_new();
+    sheets.forEach(s=>{
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(s.rows), s.name);
+    });
+    XLSX.writeFile(wb, filename);
+    showToast('ดาวน์โหลด Excel แล้ว');
+  }catch(e){ showToast('ดาวน์โหลดไม่สำเร็จ'); }
 }
 
-/* ====== render ====== */
+function exportStockExcel(){
+  const rows = [['หมวดหมู่','หมวดหมู่ย่อย','ชื่อสินค้า','จำนวนคงเหลือ','หน่วย','ขั้นต่ำ','สถานะ']];
+  items.forEach(it=>{
+    rows.push([it.group==='consumable'?'วัสดุสิ้นเปลือง':'ของใช้ทั่วไป', it.subcat, it.name, it.qty, it.unit, it.minQty, statusLabel(statusOf(it))]);
+  });
+  downloadWorkbook([{name:'สต็อกทั้งหมด', rows}], 'สต็อก-' + todayStr() + '.xlsx');
+}
+
+function exportSummaryExcel(){
+  const pending = batches.filter(b=>b.status==='pending');
+  const orderRows = [['วันที่ส่งคำขอ','ผู้เบิก','หมวดหมู่ย่อย','ชื่อสินค้า','จำนวนที่สั่ง','หน่วย','สถานะ']];
+  batches.forEach(b=> b.items.forEach(it=>{
+    const st = it.purchaseStatus==='done' ? 'สำเร็จ '+(it.receivedQty!==undefined?it.receivedQty:it.qty)+' '+it.unit
+             : it.purchaseStatus==='failed' ? 'ไม่สำเร็จ' : 'รอดำเนินการ';
+    orderRows.push([fmtDate(b.createdAt), b.requestedBy||'', it.category, it.name, it.qty, it.unit, st]);
+  }));
+  const stockRows = [['หมวดหมู่','หมวดหมู่ย่อย','ชื่อสินค้า','จำนวนคงเหลือ','หน่วย','ขั้นต่ำ','สถานะ']];
+  items.forEach(it=>{
+    stockRows.push([it.group==='consumable'?'วัสดุสิ้นเปลือง':'ของใช้ทั่วไป', it.subcat, it.name, it.qty, it.unit, it.minQty, statusLabel(statusOf(it))]);
+  });
+  downloadWorkbook([
+    {name:'คำสั่งซื้อทั้งหมด', rows: orderRows},
+    {name:'สต็อกทั้งหมด', rows: stockRows}
+  ], 'สรุปจัดซื้อ-' + todayStr() + '.xlsx');
+}
+
+function exportStockCheckExcel(){
+  if(stockChecks.length===0){ showToast('ยังไม่มีประวัติการตรวจนับ'); return; }
+  const rows = [['วันที่ตรวจนับ','ผู้ตรวจนับ','หมายเหตุ','ชื่อสินค้า','ระบบมี','นับได้จริง','ผลต่าง']];
+  stockChecks.forEach(c=>{
+    (c.items||[]).forEach(it=>{
+      rows.push([fmtDate(c.date), c.checkerName, c.note||'', it.name, it.systemQty, it.actualQty, it.diff]);
+    });
+  });
+  downloadWorkbook([{name:'ประวัติตรวจนับสต็อก', rows}], 'ตรวจนับสต็อก-' + todayStr() + '.xlsx');
+}
+
+function exportRangeExcel(){
+  const purchaseRows = [['วันที่สั่งซื้อ','ผู้เบิก','ชื่อสินค้า','จำนวนที่ซื้อได้จริง','หน่วย']];
+  batches.filter(b=>inRange(b.createdAt)).forEach(b=>{
+    b.items.filter(it=>it.purchaseStatus==='done').forEach(it=>{
+      purchaseRows.push([fmtDate(b.createdAt), b.requestedBy||'', it.name, it.receivedQty!==undefined?it.receivedQty:it.qty, it.unit]);
+    });
+  });
+  const usageRows = [['วันที่ใช้','ชื่อสินค้า','จำนวนที่ใช้','หน่วย','หมายเหตุ']];
+  usageLog.filter(u=>inRange(u.date)).forEach(u=>{
+    usageRows.push([fmtDate(u.date), u.name, u.qty, u.unit, u.note||'']);
+  });
+  downloadWorkbook([
+    {name:'การสั่งซื้อในช่วงนี้', rows: purchaseRows},
+    {name:'การใช้ของในช่วงนี้', rows: usageRows}
+  ], 'ข้อมูลย้อนหลัง-' + draftRangeStart + '_ถึง_' + draftRangeEnd + '.xlsx');
+}
+
+/* ====== render: เช็คสต็อก ====== */
 function renderStockTab(){
   const consumableGroups = groupItems(items, 'consumable');
   const durableGroups = groupItems(items, 'durable');
   let html = '';
+  html += `<button class="primary-btn csv-btn" style="margin-bottom:14px" onclick="window.__exportStockExcel()">⬇️ ดาวน์โหลด Excel สต็อกทั้งหมด</button>`;
   html += `<div class="group-title">🧴 วัสดุสิ้นเปลือง</div><div class="group-sub">ของใช้ที่หมดเร็ว ต้องเติมสม่ำเสมอ</div>`;
   html += renderSubcats(consumableGroups);
   html += `<div class="group-title">🧹 ของใช้ทั่วไป</div><div class="group-sub">อุปกรณ์ที่ไม่ต้องเปลี่ยนบ่อย</div>`;
@@ -395,6 +480,7 @@ function renderSubcats(bySub){
     bySub[subcat].forEach(it=>{
       const st = statusOf(it);
       const queued = isQueued(it.id);
+      const usageVal = draftUsage[it.id] !== undefined ? draftUsage[it.id] : '';
       html += `
       <div class="card">
         <div class="item-row">
@@ -412,12 +498,17 @@ function renderSubcats(bySub){
         <button class="add-order-btn ${queued?'added':''}" onclick="window.__toggleQueue('${it.id}')">
           ${queued ? '✓ อยู่ในรายการสั่งซื้อแล้ว' : '+ เพิ่มลงรายการสั่งซื้อ'}
         </button>
+        <div class="usage-row">
+          <input type="number" min="0" placeholder="จำนวน" value="${usageVal}" oninput="window.__setUsageDraft('${it.id}', this.value)">
+          <button class="usage-btn" onclick="window.__logUsage('${it.id}')">🔻 บันทึกว่าใช้ไป (หักสต็อก)</button>
+        </div>
       </div>`;
     });
   });
   return html;
 }
 
+/* ====== render: รายการสั่งซื้อ ====== */
 function renderOrderTab(){
   const nameField = `
     <div class="card" style="margin-bottom:14px">
@@ -456,7 +547,7 @@ function daysSince(iso){
   return Math.floor(ms / 86400000);
 }
 
-/* ====== แท็บตรวจนับสต็อก (stocktake) ====== */
+/* ====== render: ตรวจนับสต็อก ====== */
 function renderWeeklyTab(){
   const lastCheck = stockChecks[0];
   const days = lastCheck ? daysSince(lastCheck.date) : null;
@@ -500,7 +591,8 @@ function renderWeeklyTab(){
   </div>`;
 
   if(stockChecks.length>0){
-    html += `<div class="group-title" style="margin-top:22px">ประวัติการตรวจนับ</div>`;
+    html += `<button class="primary-btn csv-btn" style="margin-top:16px" onclick="window.__exportStockCheckExcel()">⬇️ ดาวน์โหลด Excel ประวัติตรวจนับ</button>`;
+    html += `<div class="group-title" style="margin-top:18px">ประวัติการตรวจนับ</div>`;
     stockChecks.forEach(c=>{
       const diffItems = (c.items||[]).filter(it=> Number(it.diff)!==0);
       html += `
@@ -561,16 +653,18 @@ async function logStockCheck(){
   }catch(e){ showToast('บันทึกไม่สำเร็จ'); }
 }
 
-/* ====== แท็บสรุป/จัดซื้อ ====== */
+/* ====== render: สรุป/จัดซื้อ ====== */
 function renderSummaryTab(){
   let html = '';
   const pending = batches.filter(b=>b.status==='pending');
   const done = batches.filter(b=>b.status==='done');
   html += `<div class="group-title">สรุปสำหรับฝ่ายจัดซื้อ</div>`;
-  html += `<div class="group-sub">ใช้หน้านี้เป็นเช็คลิสต์เวลาไปซื้อของจริง — ติ๊กทีละรายการว่าซื้อได้หรือไม่ได้ สต็อกจะอัปเดตให้อัตโนมัติ</div>`;
+  html += `<div class="group-sub">ใช้หน้านี้เป็นเช็คลิสต์เวลาไปซื้อของจริง — ติ๊กทีละรายการว่าซื้อได้หรือไม่ได้ สต็อกจะอัปเดตให้อัตโนมัติเมื่อยืนยัน "สำเร็จ"</div>`;
   if(pending.length>0){
     html += `<button class="primary-btn" style="margin-bottom:8px" onclick="window.__copySummary()">📋 คัดลอกรายการทั้งหมด</button>`;
-    html += `<button class="primary-btn csv-btn" style="margin-bottom:14px" onclick="window.__exportCSV()">⬇️ ดาวน์โหลด CSV</button>`;
+  }
+  if(batches.length>0){
+    html += `<button class="primary-btn csv-btn" style="margin-bottom:14px" onclick="window.__exportSummaryExcel()">⬇️ ดาวน์โหลด Excel (คำสั่งซื้อทั้งหมด + สต็อก)</button>`;
   }
   if(batches.length===0){ html += `<div class="empty">ยังไม่มีการส่งคำสั่งซื้อ</div>`; }
   pending.forEach(b=>{ html += renderBatchCard(b); });
@@ -582,9 +676,9 @@ function renderSummaryTab(){
 }
 
 function renderBatchCard(b){
-  const items = b.items || [];
-  const doneCount = items.filter(it=> (it.purchaseStatus||'pending')==='done').length;
-  const failedCount = items.filter(it=> (it.purchaseStatus||'pending')==='failed').length;
+  const bitems = b.items || [];
+  const doneCount = bitems.filter(it=> (it.purchaseStatus||'pending')==='done').length;
+  const failedCount = bitems.filter(it=> (it.purchaseStatus||'pending')==='failed').length;
 
   let html = `<div class="batch-card">
     <div class="batch-head">
@@ -597,10 +691,10 @@ function renderBatchCard(b){
     </div>`;
 
   if(b.status==='pending'){
-    html += `<div class="batch-progress">สำเร็จ ${doneCount} · ไม่สำเร็จ ${failedCount} · เหลือ ${items.length-doneCount-failedCount} จากทั้งหมด ${items.length} รายการ</div>`;
+    html += `<div class="batch-progress">สำเร็จ ${doneCount} · ไม่สำเร็จ ${failedCount} · เหลือ ${bitems.length-doneCount-failedCount} จากทั้งหมด ${bitems.length} รายการ</div>`;
   }
 
-  items.forEach((it, idx)=>{
+  bitems.forEach((it, idx)=>{
     const st = it.purchaseStatus || 'pending';
     const recv = it.receivedQty !== undefined ? it.receivedQty : it.qty;
     html += `<div class="purchase-line">
@@ -624,6 +718,69 @@ function renderBatchCard(b){
   return html;
 }
 
+/* ====== render: แดชบอร์ด ====== */
+function renderDashboardTab(){
+  const lowStock = items.filter(i=>statusOf(i)!=='ok');
+  const pendingBatches = batches.filter(b=>b.status==='pending');
+  let doneAll=0, failedAll=0;
+  batches.forEach(b=> b.items.forEach(it=>{
+    if(it.purchaseStatus==='done') doneAll++;
+    else if(it.purchaseStatus==='failed') failedAll++;
+  }));
+
+  let html = `<div class="group-title">แดชบอร์ด</div><div class="group-sub">ภาพรวมของใช้ในบ้าน ณ ตอนนี้</div>`;
+  html += `<div class="metric-grid">
+    <div class="metric-box ${lowStock.length>0?'warn':''}"><div class="num">${lowStock.length}</div><div class="lbl">ของใกล้หมด/หมด</div></div>
+    <div class="metric-box"><div class="num">${queue.length}</div><div class="lbl">รอในรายการสั่งซื้อ</div></div>
+    <div class="metric-box"><div class="num">${pendingBatches.length}</div><div class="lbl">คำสั่งซื้อกำลังดำเนินการ</div></div>
+    <div class="metric-box"><div class="num">${doneAll}/${doneAll+failedAll}</div><div class="lbl">ซื้อสำเร็จทั้งหมด</div></div>
+  </div>`;
+
+  if(lowStock.length>0){
+    html += `<div class="group-title" style="margin-top:18px">รายการที่ใกล้หมด/หมด</div><div class="card">`;
+    lowStock.slice(0,8).forEach(it=>{
+      html += `<div class="agg-line"><span>${it.name}</span><span class="n">${it.qty} ${it.unit}</span></div>`;
+    });
+    html += `</div>`;
+  }
+
+  html += `<div class="group-title" style="margin-top:22px">ดูข้อมูลย้อนหลัง</div>`;
+  html += `<div class="card">
+    <div class="range-row">
+      <input type="date" value="${draftRangeStart}" onchange="window.__setRange('start', this.value)">
+      <span>ถึง</span>
+      <input type="date" value="${draftRangeEnd}" onchange="window.__setRange('end', this.value)">
+    </div>
+    <button class="primary-btn csv-btn" onclick="window.__exportRangeExcel()">⬇️ ดาวน์โหลด Excel ข้อมูลช่วงนี้</button>
+  </div>`;
+
+  const purchasedInRange = {};
+  batches.filter(b=>inRange(b.createdAt)).forEach(b=>{
+    b.items.filter(it=>it.purchaseStatus==='done').forEach(it=>{
+      const key = it.name+'|'+it.unit;
+      purchasedInRange[key] = (purchasedInRange[key]||0) + (Number(it.receivedQty!==undefined?it.receivedQty:it.qty)||0);
+    });
+  });
+  html += `<div class="group-title" style="margin-top:16px">สั่งซื้อเข้าสต็อกในช่วงนี้</div><div class="card">`;
+  const pKeys = Object.keys(purchasedInRange);
+  if(pKeys.length===0){ html += `<div class="item-meta">ไม่มีข้อมูลในช่วงนี้</div>`; }
+  else pKeys.forEach(k=>{ const [name,unit]=k.split('|'); html += `<div class="agg-line"><span>${name}</span><span class="n">+${purchasedInRange[k]} ${unit}</span></div>`; });
+  html += `</div>`;
+
+  const usedInRange = {};
+  usageLog.filter(u=>inRange(u.date)).forEach(u=>{
+    const key = u.name+'|'+u.unit;
+    usedInRange[key] = (usedInRange[key]||0) + (Number(u.qty)||0);
+  });
+  html += `<div class="group-title" style="margin-top:16px">ใช้ไปในช่วงนี้</div><div class="card">`;
+  const uKeys = Object.keys(usedInRange);
+  if(uKeys.length===0){ html += `<div class="item-meta">ไม่มีข้อมูลในช่วงนี้ (บันทึกได้จากปุ่ม "บันทึกว่าใช้ไป" ในแท็บเช็คสต็อก)</div>`; }
+  else uKeys.forEach(k=>{ const [name,unit]=k.split('|'); html += `<div class="agg-line"><span>${name}</span><span class="n">-${usedInRange[k]} ${unit}</span></div>`; });
+  html += `</div>`;
+
+  return html;
+}
+
 function render(){
   if(!API_URL){ renderSetup(); return; }
   const app = document.getElementById('app');
@@ -636,6 +793,7 @@ function render(){
   if(activeTab==='stock') body = renderStockTab();
   else if(activeTab==='order') body = renderOrderTab();
   else if(activeTab==='weekly') body = renderWeeklyTab();
+  else if(activeTab==='dashboard') body = renderDashboardTab();
   else body = renderSummaryTab();
 
   app.innerHTML = `
@@ -645,10 +803,11 @@ function render(){
       <div class="conn ${connected?'':'off'}"><span class="dot"></span>${connected ? 'เชื่อมต่อ Google Sheet แล้ว · sync ทุก 8 วิ' : 'เชื่อมต่อไม่ได้ ตรวจสอบอินเทอร์เน็ต'}</div>
     </header>
     <nav class="tabs">
-      <button class="${activeTab==='stock'?'active':''}" onclick="window.__setTab('stock')">เช็คสต็อก ${lowCount>0 ? `<span class="count">${lowCount} รายการใกล้หมด</span>` : ''}</button>
-      <button class="${activeTab==='order'?'active':''}" onclick="window.__setTab('order')">รายการสั่งซื้อ ${queue.length>0 ? `<span class="count">${queue.length} รายการ</span>` : ''}</button>
-      <button class="${activeTab==='weekly'?'active':''}" onclick="window.__setTab('weekly')">ตรวจนับสต็อก ${checkOverdue ? `<span class="count">เกินกำหนด</span>` : ''}</button>
-      <button class="${activeTab==='summary'?'active':''}" onclick="window.__setTab('summary')">สรุป/จัดซื้อ ${pendingCount>0 ? `<span class="count">${pendingCount} รอซื้อ</span>` : ''}</button>
+      <button class="${activeTab==='dashboard'?'active':''}" onclick="window.__setTab('dashboard')">แดชบอร์ด ${lowCount>0 ? `<span class="count">${lowCount} เตือน</span>` : ''}</button>
+      <button class="${activeTab==='stock'?'active':''}" onclick="window.__setTab('stock')">เช็คสต็อก ${lowCount>0 ? `<span class="count">${lowCount} ใกล้หมด</span>` : ''}</button>
+      <button class="${activeTab==='order'?'active':''}" onclick="window.__setTab('order')">สั่งซื้อ ${queue.length>0 ? `<span class="count">${queue.length}</span>` : ''}</button>
+      <button class="${activeTab==='weekly'?'active':''}" onclick="window.__setTab('weekly')">ตรวจนับ ${checkOverdue ? `<span class="count">เกินกำหนด</span>` : ''}</button>
+      <button class="${activeTab==='summary'?'active':''}" onclick="window.__setTab('summary')">สรุป/จัดซื้อ ${pendingCount>0 ? `<span class="count">${pendingCount}</span>` : ''}</button>
     </nav>
     <main>${body}</main>
     ${activeTab==='order' && queue.length>0 ? `<div class="fab"><button onclick="window.__submitOrder()">ส่งรายการให้ฝ่ายจัดซื้อ (${queue.length} รายการ)</button></div>` : ''}
@@ -665,8 +824,12 @@ window.__submitOrder = submitOrder;
 window.__setPurchaseStatus = setPurchaseStatus;
 window.__deleteBatch = deleteBatch;
 window.__copySummary = copySummary;
-window.__exportCSV = exportCSV;
 window.__logStockCheck = logStockCheck;
+window.__logUsage = logUsageItem;
+window.__exportStockExcel = exportStockExcel;
+window.__exportSummaryExcel = exportSummaryExcel;
+window.__exportStockCheckExcel = exportStockCheckExcel;
+window.__exportRangeExcel = exportRangeExcel;
 window.__toggleAddForm = ()=>{ showAddForm = !showAddForm; render(); };
 window.__submitAdd = ()=>{
   addNewItem(
